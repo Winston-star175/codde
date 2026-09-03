@@ -62,19 +62,28 @@ local function GetNearestNPC()
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
 
-    local nearest, nearestDistance = nil, math.huge
+    local nearest = nil
+    local nearestDistance = math.huge
 
     for _, obj in ipairs(workspace:GetDescendants()) do
         if obj:IsA("Model") and obj ~= character then
+
+            -- First check for Humanoid
             local humanoid = obj:FindFirstChildOfClass("Humanoid")
-            local npcRoot = obj:FindFirstChild("HumanoidRootPart")
 
-            if humanoid and npcRoot and humanoid.Health > 0 then
-                local distance = (root.Position - npcRoot.Position).Magnitude
+            if humanoid and humanoid.Health > 0 then
 
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearest = obj
+                -- Then check for the NPC's root
+                local npcRoot = obj:FindFirstChild("HumanoidRootPart")
+
+                if npcRoot then
+                    local distance =
+                        (root.Position - npcRoot.Position).Magnitude
+
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearest = obj
+                    end
                 end
             end
         end
