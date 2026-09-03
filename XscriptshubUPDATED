@@ -235,7 +235,7 @@ NPCCombatTab:CreateSlider({
 
 NPCCombatTab:CreateSlider({
     Name = "Damage",
-    Range = {500, 100000},
+    Range = {500, 5000},
     Increment = 100,
     Suffix = " damage",
     CurrentValue = 10,
