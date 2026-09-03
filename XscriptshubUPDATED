@@ -7,7 +7,7 @@ local Window = Rayfield:CreateWindow({
     LoadingTitle = "X-Scripts Hub",
     LoadingSubtitle = "Universal Hub",
     ShowText = "X-Scripts",
-    Theme = "DarkBlue",
+    Theme = "AmberGlow",
     ToggleUIKeybind = "K",
     DisableRayfieldPrompts = false,
     DisableBuildWarnings = false,
@@ -51,105 +51,9 @@ local AttackCooldown = 0.5
 local Damage = 10
 local LastAttack = 0
 
--- Farming item is selected by inventory hotbar slot (1-9).
-local SelectedInventorySlot = 1
-local HitboxSize = 4
-local OriginalHitboxSizes = {}
-
-local function ApplySelectedToolHitbox()
-    local tool = GetToolFromSlot and GetToolFromSlot(SelectedInventorySlot)
-    if not tool then return end
-
-    for _, object in ipairs(tool:GetDescendants()) do
-        if object:IsA("BasePart") then
-            if not OriginalHitboxSizes[object] then
-                OriginalHitboxSizes[object] = object.Size
-            end
-
-            -- Client-side visual/physical enlargement of the selected Tool.
-            object.Size = OriginalHitboxSizes[object] * (HitboxSize / 4)
-        end
-    end
-end
-
-local function RestoreToolHitbox(tool)
-    if not tool then return end
-
-    for _, object in ipairs(tool:GetDescendants()) do
-        local original = OriginalHitboxSizes[object]
-        if object:IsA("BasePart") and original then
-            object.Size = original
-            OriginalHitboxSizes[object] = nil
-        end
-    end
-end
-
 local NPCCombatTab = Window:CreateTab("NPC Combat", 124871982298256)
 
 NPCCombatTab:CreateSection("NPC Farming")
-
-local function GetInventoryTools()
-    local tools = {}
-
-    -- Backpack order is used as the hotbar inventory order.
-    for _, item in ipairs(Player.Backpack:GetChildren()) do
-        if item:IsA("Tool") then
-            table.insert(tools, item)
-        end
-    end
-
-    -- Include an equipped tool as well.
-    local character = Player.Character
-    if character then
-        for _, item in ipairs(character:GetChildren()) do
-            if item:IsA("Tool") and not table.find(tools, item) then
-                table.insert(tools, item)
-            end
-        end
-    end
-
-    return tools
-end
-
-local function GetToolFromSlot(slot)
-    if slot < 1 or slot > 9 then
-        return nil
-    end
-
-    local tools = GetInventoryTools()
-    return tools[slot]
-end
-
-local function EquipSelectedFarmingItem()
-    local character = Player.Character
-    local humanoid = character and character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then
-        return nil
-    end
-
-    local tool = GetToolFromSlot(SelectedInventorySlot)
-    if not tool then
-        return nil
-    end
-
-    if tool.Parent ~= character then
-        humanoid:EquipTool(tool)
-    end
-
-    task.defer(function()
-        ApplySelectedToolHitbox()
-    end)
-
-    return tool
-end
-
-task.spawn(function()
-    while task.wait(0.25) do
-        if NPCAttackEnabled or NPCFloatEnabled then
-            ApplySelectedToolHitbox()
-        end
-    end
-end)
 
 local function GetNearestNPC()
     local character = Player.Character
@@ -191,60 +95,6 @@ local function GetNearestNPC()
 
     return nearest
 end
-
-NPCCombatTab:CreateDropdown({
-    Name = "Farming Inventory Slot",
-    Options = {"1", "2", "3", "4", "5", "6", "7", "8", "9"},
-    CurrentOption = {"1"},
-    MultipleOptions = false,
-    Flag = "FarmingInventorySlot",
-    Callback = function(option)
-        local selected = option
-
-        -- Rayfield versions may return a table for dropdown selections.
-        if type(option) == "table" then
-            selected = option[1]
-        end
-
-        local number = tonumber(selected)
-        if number then
-            SelectedInventorySlot = math.clamp(number, 1, 9)
-        end
-    end
-})
-
-NPCCombatTab:CreateSlider({
-    Name = "Selected Slot Hitbox Size",
-    Range = {1, 20},
-    Increment = 1,
-    Suffix = " studs",
-    CurrentValue = 4,
-    Flag = "SelectedSlotHitbox",
-    Callback = function(value)
-        HitboxSize = value
-        ApplySelectedToolHitbox()
-    end
-})
-
-NPCCombatTab:CreateButton({
-    Name = "Equip Selected Slot",
-    Callback = function()
-        local tool = EquipSelectedFarmingItem()
-
-        if tool then
-            AddLog("Equipped farming slot " .. SelectedInventorySlot .. ": " .. tool.Name, "INFO")
-        else
-            AddLog("No Tool found in inventory slot " .. SelectedInventorySlot, "WARN")
-        end
-    end
-})
-
-NPCCombatTab:CreateButton({
-    Name = "Refresh Inventory",
-    Callback = function()
-        AddLog("Inventory refreshed.", "INFO")
-    end
-})
 
 NPCCombatTab:CreateToggle({
     Name = "Float Above NPC",
@@ -322,15 +172,138 @@ task.spawn(function()
             local humanoid = npc and npc:FindFirstChildOfClass("Humanoid")
 
             if humanoid and humanoid.Health > 0 then
-                local tool = EquipSelectedFarmingItem()
-
-                if tool then
-                    -- Activate the selected inventory item's normal Tool behavior.
-                    tool:Activate()
-                end
-
                 LastAttack = os.clock()
                 humanoid:TakeDamage(Damage)
+            end
+        end
+    end
+end)
+
+--// Auto Skill Keys
+local AutoKeyZ = false
+local AutoKeyX = false
+local AutoKeyC = false
+local AutoKeyV = false
+local AutoKeyDelay = 1
+
+local function PressKey(key)
+    -- Executor/client environments that expose keypress/keyrelease.
+    if typeof(keypress) == "function" and typeof(keyrelease) == "function" then
+        pcall(function()
+            keypress(key)
+            task.wait(0.05)
+            keyrelease(key)
+        end)
+        return true
+    end
+
+    return false
+end
+
+local function GetEnabledAutoKeys()
+    local keys = {}
+
+    if AutoKeyZ then table.insert(keys, "z") end
+    if AutoKeyX then table.insert(keys, "x") end
+    if AutoKeyC then table.insert(keys, "c") end
+    if AutoKeyV then table.insert(keys, "v") end
+
+    return keys
+end
+
+local AutoKeyTab = Window:CreateTab("Auto Keys", 6031075931)
+
+AutoKeyTab:CreateSection("Automatic Key Presses")
+
+AutoKeyTab:CreateToggle({
+    Name = "Auto Z",
+    CurrentValue = false,
+    Flag = "AutoKeyZ",
+    Callback = function(value)
+        AutoKeyZ = value
+    end
+})
+
+AutoKeyTab:CreateToggle({
+    Name = "Auto X",
+    CurrentValue = false,
+    Flag = "AutoKeyX",
+    Callback = function(value)
+        AutoKeyX = value
+    end
+})
+
+AutoKeyTab:CreateToggle({
+    Name = "Auto C",
+    CurrentValue = false,
+    Flag = "AutoKeyC",
+    Callback = function(value)
+        AutoKeyC = value
+    end
+})
+
+AutoKeyTab:CreateToggle({
+    Name = "Auto V",
+    CurrentValue = false,
+    Flag = "AutoKeyV",
+    Callback = function(value)
+        AutoKeyV = value
+    end
+})
+
+AutoKeyTab:CreateSlider({
+    Name = "Key Delay",
+    Range = {0.1, 5},
+    Increment = 0.1,
+    Suffix = " sec",
+    CurrentValue = 1,
+    Flag = "AutoKeyDelay",
+    Callback = function(value)
+        AutoKeyDelay = value
+    end
+})
+
+AutoKeyTab:CreateButton({
+    Name = "Test Selected Keys",
+    Callback = function()
+        local keys = GetEnabledAutoKeys()
+
+        for _, key in ipairs(keys) do
+            PressKey(key)
+            task.wait(0.1)
+        end
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.05) do
+        local keys = GetEnabledAutoKeys()
+
+        -- Only press the selected keys while a living NPC is the current target.
+        local npc = GetNearestNPC()
+        local character = Player.Character
+        local root = character and character:FindFirstChild("HumanoidRootPart")
+        local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
+
+        if #keys > 0 and root and npcRoot then
+            -- Face the character toward the NPC before using the abilities.
+            root.CFrame = CFrame.lookAt(
+                root.Position,
+                Vector3.new(npcRoot.Position.X, root.Position.Y, npcRoot.Position.Z)
+            )
+
+            for _, key in ipairs(keys) do
+                -- Re-check that the NPC is still valid before each key.
+                local currentNPC = GetNearestNPC()
+                local currentRoot = currentNPC and currentNPC:FindFirstChild("HumanoidRootPart")
+                local currentHumanoid = currentNPC and currentNPC:FindFirstChildOfClass("Humanoid")
+
+                if currentRoot and currentHumanoid and currentHumanoid.Health > 0 then
+                    PressKey(key)
+                    task.wait(AutoKeyDelay)
+                else
+                    break
+                end
             end
         end
     end
