@@ -516,128 +516,9 @@ GetScriptTab:CreateButton({
         loadstring(game:HttpGet("https://raw.githubusercontent.com/huy384/redzHub/refs/heads/main/redzHub.lua"))()
     end
 })
---// NPC Combat (Client)
-local NPCCombatTab = Window:CreateTab("NPC Combat", 4483362458)
 
-local NPCFloatEnabled = false
-local NPCAttackEnabled = false
-local FloatHeight = 8
-local AttackCooldown = 0.5
-local Damage = 10
 
-local function GetNearestNPC()
-    local character = LocalPlayer.Character
-    if not character then return nil end
 
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not root then return nil end
-
-    local nearest = nil
-    local nearestDistance = math.huge
-
-    for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj ~= character then
-            local humanoid = obj:FindFirstChildOfClass("Humanoid")
-            local npcRoot = obj:FindFirstChild("HumanoidRootPart")
-
-            if humanoid and npcRoot and humanoid.Health > 0 then
-                local distance = (root.Position - npcRoot.Position).Magnitude
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearest = obj
-                end
-            end
-        end
-    end
-
-    return nearest
-end
-
-NPCCombatTab:CreateSection("NPC Farming")
-
-NPCCombatTab:CreateToggle({
-    Name = "Float Above NPC",
-    CurrentValue = false,
-    Flag = "NPCFloat",
-    Callback = function(Value)
-        NPCFloatEnabled = Value
-    end,
-})
-
-NPCCombatTab:CreateToggle({
-    Name = "Attack NPC",
-    CurrentValue = false,
-    Flag = "NPCAttack",
-    Callback = function(Value)
-        NPCAttackEnabled = Value
-    end,
-})
-
-NPCCombatTab:CreateSlider({
-    Name = "Float Height",
-    Range = {3, 20},
-    Increment = 1,
-    Suffix = " studs",
-    CurrentValue = 8,
-    Flag = "NPCFloatHeight",
-    Callback = function(Value)
-        FloatHeight = Value
-    end,
-})
-
-NPCCombatTab:CreateSlider({
-    Name = "Attack Cooldown",
-    Range = {0.1, 2},
-    Increment = 0.05,
-    Suffix = " sec",
-    CurrentValue = 0.5,
-    Flag = "NPCAttackCooldown",
-    Callback = function(Value)
-        AttackCooldown = Value
-    end,
-})
-
-NPCCombatTab:CreateSlider({
-    Name = "Damage",
-    Range = {1, 100},
-    Increment = 1,
-    Suffix = " damage",
-    CurrentValue = 10,
-    Flag = "NPCDamage",
-    Callback = function(Value)
-        Damage = Value
-    end,
-})
-
-task.spawn(function()
-    while task.wait(0.05) do
-        if NPCFloatEnabled then
-            local character = LocalPlayer.Character
-            local root = character and character:FindFirstChild("HumanoidRootPart")
-            local npc = GetNearestNPC()
-            local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
-
-            if root and npcRoot then
-                root.CFrame = npcRoot.CFrame * CFrame.new(0, FloatHeight, 0)
-            end
-        end
-    end
-end)
-
-task.spawn(function()
-    while task.wait(0.05) do
-        if NPCAttackEnabled then
-            local npc = GetNearestNPC()
-            local humanoid = npc and npc:FindFirstChildOfClass("Humanoid")
-
-            if humanoid and humanoid.Health > 0 then
-                humanoid:TakeDamage(Damage)
-            end
-
-            task.wait(AttackCooldown)
-        end
-    end
-end)
 
 --// Credits
 local CreditsTab = Window:CreateTab("Credits", 6031075931)
@@ -645,7 +526,7 @@ local CreditsTab = Window:CreateTab("Credits", 6031075931)
 CreditsTab:CreateSection("Developer Panel")
 CreditsTab:CreateLabel("Developer: LEGENDSNEVERDIE625")
 CreditsTab:CreateLabel("UI: Rayfield")
-CreditsTab:CreateLabel("Purpose: Roblox Exploiting")
+CreditsTab:CreateLabel("Purpose: Roblox Scripting")
 CreditsTab:CreateLabel("Version: 1.1")
 
 Rayfield:LoadConfiguration()
