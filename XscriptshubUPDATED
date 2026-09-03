@@ -43,6 +43,129 @@ local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 
+--// NPC Combat
+local NPCFloatEnabled = false
+local NPCAttackEnabled = false
+local FloatHeight = 8
+local AttackCooldown = 0.5
+local Damage = 10
+local LastAttack = 0
+
+local NPCCombatTab = Window:CreateTab("NPC Combat", 124871982298256)
+
+NPCCombatTab:CreateSection("NPC Farming")
+
+local function GetNearestNPC()
+    local character = Player.Character
+    if not character then return nil end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local nearest, nearestDistance = nil, math.huge
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= character then
+            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+            local npcRoot = obj:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and npcRoot and humanoid.Health > 0 then
+                local distance = (root.Position - npcRoot.Position).Magnitude
+
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearest = obj
+                end
+            end
+        end
+    end
+
+    return nearest
+end
+
+NPCCombatTab:CreateToggle({
+    Name = "Float Above NPC",
+    CurrentValue = false,
+    Flag = "NPCFloat",
+    Callback = function(value)
+        NPCFloatEnabled = value
+    end
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Float Height",
+    Range = {3, 20},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = 8,
+    Flag = "NPCFloatHeight",
+    Callback = function(value)
+        FloatHeight = value
+    end
+})
+
+NPCCombatTab:CreateToggle({
+    Name = "Attack NPC",
+    CurrentValue = false,
+    Flag = "NPCAttack",
+    Callback = function(value)
+        NPCAttackEnabled = value
+    end
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Attack Cooldown",
+    Range = {0.1, 2},
+    Increment = 0.05,
+    Suffix = " sec",
+    CurrentValue = 0.5,
+    Flag = "NPCAttackCooldown",
+    Callback = function(value)
+        AttackCooldown = value
+    end
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Damage",
+    Range = {1, 100},
+    Increment = 1,
+    Suffix = " damage",
+    CurrentValue = 10,
+    Flag = "NPCDamage",
+    Callback = function(value)
+        Damage = value
+    end
+})
+
+task.spawn(function()
+    while task.wait(0.05) do
+        if NPCFloatEnabled then
+            local character = Player.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local npc = GetNearestNPC()
+            local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
+
+            if root and npcRoot then
+                root.CFrame = npcRoot.CFrame * CFrame.new(0, FloatHeight, 0)
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.05) do
+        if NPCAttackEnabled and os.clock() - LastAttack >= AttackCooldown then
+            local npc = GetNearestNPC()
+            local humanoid = npc and npc:FindFirstChildOfClass("Humanoid")
+
+            if humanoid and humanoid.Health > 0 then
+                LastAttack = os.clock()
+                humanoid:TakeDamage(Damage)
+            end
+        end
+    end
+end)
+
 --// Player tab
 local PlayerTab = Window:CreateTab("Player", 124871982298256)
 
