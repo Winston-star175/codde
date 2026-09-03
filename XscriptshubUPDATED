@@ -1,0 +1,651 @@
+
+local Rayfield = loadstring(game:HttpGet("https://sirius.menu/rayfield"))()
+
+local Window = Rayfield:CreateWindow({
+    Name = "X-Scripts Hub",
+    Icon = 0,
+    LoadingTitle = "X-Scripts Hub",
+    LoadingSubtitle = "Universal Hub",
+    ShowText = "X-Scripts",
+    Theme = "AmberGlow",
+    ToggleUIKeybind = "K",
+    DisableRayfieldPrompts = false,
+    DisableBuildWarnings = false,
+
+    ConfigurationSaving = {
+        Enabled = true,
+        FolderName = nil,
+        FileName = "Big Hub"
+    },
+
+    Discord = {
+        Enabled = true,
+        Invite = "f5ufNjcBu",
+        RememberJoins = true
+    },
+
+    KeySystem = true,
+    KeySettings = {
+        Title = "X-Scripts",
+        Subtitle = "Key System",
+        Note = "Join the discord server",
+        FileName = "XScriptkeyf!le",
+        SaveKey = true,
+        GrabKeyFromSite = false,
+        Key = {"Hello"}
+    }
+})
+
+--// Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+local Player = Players.LocalPlayer
+
+--// Player tab
+local PlayerTab = Window:CreateTab("Player", 124871982298256)
+
+PlayerTab:CreateSection("Movement")
+
+PlayerTab:CreateSlider({
+    Name = "Player Speed",
+    Range = {0, 500},
+    Increment = 10,
+    Suffix = " studs/s",
+    CurrentValue = 10,
+    Flag = "PlayerSpeed",
+    Callback = function(value)
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+PlayerTab:CreateSlider({
+    Name = "Player Jump",
+    Range = {0, 500},
+    Increment = 10,
+    Suffix = " power",
+    CurrentValue = 10,
+    Flag = "PlayerJump",
+    Callback = function(value)
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.JumpPower = value
+        end
+    end
+})
+
+--// Noclip
+local NoclipConnection
+
+local function SetNoclip(enabled)
+    if NoclipConnection then
+        NoclipConnection:Disconnect()
+        NoclipConnection = nil
+    end
+
+    if enabled then
+        NoclipConnection = RunService.Stepped:Connect(function()
+            local character = Player.Character
+            if not character then return end
+
+            for _, object in ipairs(character:GetDescendants()) do
+                if object:IsA("BasePart") then
+                    object.CanCollide = false
+                end
+            end
+        end)
+    else
+        local character = Player.Character
+        if character then
+            for _, object in ipairs(character:GetDescendants()) do
+                if object:IsA("BasePart") then
+                    object.CanCollide = true
+                end
+            end
+        end
+    end
+end
+
+PlayerTab:CreateSection("Noclip")
+
+PlayerTab:CreateToggle({
+    Name = "Noclip",
+    CurrentValue = false,
+    Flag = "Noclip",
+    Callback = function(value)
+        SetNoclip(value)
+    end
+})
+
+--// Infinite Yield
+PlayerTab:CreateSection("Utilities")
+
+PlayerTab:CreateButton({
+    Name = "Activate Infinite Yield",
+    Callback = function()
+        loadstring(game:HttpGet(
+            "https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"
+        ))()
+    end
+})
+
+--// Fly
+local Flying = false
+local FlySpeed = 60
+local FlyConnection
+
+local function StartFly()
+    if FlyConnection then
+        FlyConnection:Disconnect()
+        FlyConnection = nil
+    end
+
+    local Character = Player.Character or Player.CharacterAdded:Wait()
+    local Humanoid = Character:WaitForChild("Humanoid")
+    local Root = Character:WaitForChild("HumanoidRootPart")
+
+    Flying = true
+    Humanoid.PlatformStand = true
+
+    FlyConnection = RunService.RenderStepped:Connect(function()
+        if not Flying or not Root.Parent then
+            return
+        end
+
+        local Camera = workspace.CurrentCamera
+        local Direction = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+            Direction += Camera.CFrame.LookVector
+        end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+            Direction -= Camera.CFrame.LookVector
+        end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+            Direction -= Camera.CFrame.RightVector
+        end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+            Direction += Camera.CFrame.RightVector
+        end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+            Direction += Vector3.new(0, 1, 0)
+        end
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            Direction -= Vector3.new(0, 1, 0)
+        end
+
+        if Direction.Magnitude > 0 then
+            Root.AssemblyLinearVelocity = Direction.Unit * FlySpeed
+        else
+            Root.AssemblyLinearVelocity = Vector3.zero
+        end
+    end)
+end
+
+local function StopFly()
+    Flying = false
+
+    if FlyConnection then
+        FlyConnection:Disconnect()
+        FlyConnection = nil
+    end
+
+    local Character = Player.Character
+
+    if Character then
+        local Humanoid = Character:FindFirstChildOfClass("Humanoid")
+        local Root = Character:FindFirstChild("HumanoidRootPart")
+
+        if Humanoid then
+            Humanoid.PlatformStand = false
+        end
+
+        if Root then
+            Root.AssemblyLinearVelocity = Vector3.zero
+        end
+    end
+end
+
+PlayerTab:CreateSection("Fly")
+
+PlayerTab:CreateToggle({
+    Name = "Enable Fly",
+    CurrentValue = false,
+    Flag = "Fly",
+    Callback = function(value)
+        if value then
+            StartFly()
+        else
+            StopFly()
+        end
+    end
+})
+
+PlayerTab:CreateSlider({
+    Name = "Fly Speed",
+    Range = {0, 200},
+    Increment = 10,
+    Suffix = " studs/s",
+    CurrentValue = 60,
+    Flag = "FlySpeed",
+    Callback = function(value)
+        FlySpeed = value
+    end
+})
+
+--// Invisibility
+local Invisible = false
+
+local function SetInvisibility(enabled)
+    Invisible = enabled
+
+    local character = Player.Character
+    if not character then return end
+
+    for _, object in ipairs(character:GetDescendants()) do
+        if object:IsA("BasePart") then
+            object.LocalTransparencyModifier = enabled and 1 or 0
+        elseif object:IsA("Decal") then
+            object.Transparency = enabled and 1 or 0
+        end
+    end
+end
+
+PlayerTab:CreateSection("Appearance")
+
+PlayerTab:CreateToggle({
+    Name = "Enable Invisibility",
+    CurrentValue = false,
+    Flag = "Invisibility",
+    Callback = function(value)
+        SetInvisibility(value)
+    end
+})
+
+-- Re-apply visual state after respawn.
+Player.CharacterAdded:Connect(function(character)
+    character:WaitForChild("Humanoid", 5)
+
+    if Invisible then
+        task.wait(0.25)
+        SetInvisibility(true)
+    end
+end)
+
+--// Player highlights
+local HighlightEnabled = false
+
+local function RemoveHighlight(character)
+    local highlight = character and character:FindFirstChild("XScriptsHighlight")
+    if highlight then
+        highlight:Destroy()
+    end
+end
+
+local function HighlightCharacter(character)
+    if not HighlightEnabled or not character then return end
+    if character:FindFirstChild("XScriptsHighlight") then return end
+
+    local highlight = Instance.new("Highlight")
+    highlight.Name = "XScriptsHighlight"
+    highlight.FillTransparency = 0.5
+    highlight.OutlineTransparency = 0
+    highlight.Parent = character
+end
+
+local function HighlightPlayer(player)
+    if player == Player then return end
+
+    if player.Character then
+        HighlightCharacter(player.Character)
+    end
+
+    player.CharacterAdded:Connect(function(character)
+        if HighlightEnabled then
+            HighlightCharacter(character)
+        end
+    end)
+end
+
+PlayerTab:CreateSection("Player Highlights")
+
+PlayerTab:CreateToggle({
+    Name = "Enable Player Highlights",
+    CurrentValue = false,
+    Flag = "PlayerHighlights",
+    Callback = function(value)
+        HighlightEnabled = value
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= Player then
+                if value then
+                    HighlightPlayer(player)
+                elseif player.Character then
+                    RemoveHighlight(player.Character)
+                end
+            end
+        end
+    end
+})
+
+Players.PlayerAdded:Connect(function(player)
+    if HighlightEnabled then
+        HighlightPlayer(player)
+    end
+end)
+
+Players.PlayerRemoving:Connect(function(player)
+    if player.Character then
+        RemoveHighlight(player.Character)
+    end
+end)
+
+--// Reset
+PlayerTab:CreateSection("Character")
+
+PlayerTab:CreateButton({
+    Name = "Reset Character",
+    Callback = function()
+        local character = Player.Character
+        local humanoid = character and character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            humanoid.Health = 0
+        end
+    end
+})
+
+--// Debug tab
+local DebugTab = Window:CreateTab("Debug", 6031075931)
+
+DebugTab:CreateSection("Performance")
+
+local FPSLabel = DebugTab:CreateLabel("FPS: calculating...")
+DebugTab:CreateLabel("Player: " .. Player.Name)
+DebugTab:CreateLabel("UserId: " .. Player.UserId)
+
+local frames = 0
+local lastTime = tick()
+local currentFPS = 0
+
+RunService.RenderStepped:Connect(function()
+    frames += 1
+
+    if tick() - lastTime >= 1 then
+        currentFPS = frames
+        frames = 0
+        lastTime = tick()
+
+        if FPSLabel and FPSLabel.Set then
+            FPSLabel:Set("FPS: " .. currentFPS)
+        end
+    end
+end)
+
+--// Rayfield-only live console
+local Logs = {}
+
+local function AddLog(message, logType)
+    local entry = "[" .. tostring(logType) .. "] " .. tostring(message)
+    table.insert(Logs, entry)
+
+    -- Keep the log window reasonably small.
+    if #Logs > 100 then
+        table.remove(Logs, 1)
+    end
+end
+
+local ConsoleTab = Window:CreateTab("Debug Console", 6031075931)
+
+ConsoleTab:CreateSection("Live Logs")
+
+local ConsoleParagraph = ConsoleTab:CreateParagraph({
+    Title = "Developer Console",
+    Content = "No logs yet."
+})
+
+local function RefreshConsole()
+    if not ConsoleParagraph or not ConsoleParagraph.Set then
+        return
+    end
+
+    local content = #Logs > 0 and table.concat(Logs, "\n") or "No logs yet."
+    ConsoleParagraph:Set({
+        Title = "Developer Console",
+        Content = content
+    })
+end
+
+ConsoleTab:CreateToggle({
+    Name = "Show Console",
+    CurrentValue = true,
+    Flag = "ShowConsole",
+    Callback = function(value)
+        if value then
+            RefreshConsole()
+        else
+            ConsoleParagraph:Set({
+                Title = "Developer Console",
+                Content = "Console hidden. Toggle it back on to view logs."
+            })
+        end
+    end
+})
+
+ConsoleTab:CreateButton({
+    Name = "Refresh Logs",
+    Callback = function()
+        RefreshConsole()
+    end
+})
+
+ConsoleTab:CreateButton({
+    Name = "Clear Logs",
+    Callback = function()
+        table.clear(Logs)
+        RefreshConsole()
+    end
+})
+
+AddLog("Developer console initialized.", "INFO")
+AddLog("Player: " .. Player.Name, "INFO")
+AddLog("Debug mode enabled.", "INFO")
+RefreshConsole()
+
+--// Get Script
+local GetScriptTab = Window:CreateTab("GetScript", 6031075931)
+
+GetScriptTab:CreateSection("Blox Fruits-Script Loader")
+
+GetScriptTab:CreateButton({
+    Name = "MeoLazyHub:🔓Keyless,📱Mobile/💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/MeoLazy/Script/refs/heads/main/V1.lua"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "MonsterHub:🔓Keyless,📱Mobile/💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/giahuy2511-coder/MonsterHub/refs/heads/main/MonsterHubEN"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "XeterHub:🔓Keyless,💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/TlDinhKhoi/Xeter/refs/heads/main/Main.lua"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "CokkaHub:🔓Keyless,📱Mobile/💻PC",
+    Callback = function()
+        loadstring(game:HttpGet"https://raw.githubusercontent.com/ShowScript79/cokkahub/refs/heads/main/cokkahub")()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "BearHub:🔓Keyless,💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Huylovemy/Bearhudz/refs/heads/main/Bearhud.lua"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "QuantumOnyx:🔑Key/🔓Keyless,📱Mobile",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/QuantumOnyx.lua"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "BlueXHub:🔑Key,📱Mobile/💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
+    end
+})
+GetScriptTab:CreateButton({
+    Name = "RedzHub:🔓Keyless,📱Mobile/💻PC",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/huy384/redzHub/refs/heads/main/redzHub.lua"))()
+    end
+})
+--// NPC Combat (Client)
+local NPCCombatTab = Window:CreateTab("NPC Combat", 4483362458)
+
+local NPCFloatEnabled = false
+local NPCAttackEnabled = false
+local FloatHeight = 8
+local AttackCooldown = 0.5
+local Damage = 10
+
+local function GetNearestNPC()
+    local character = LocalPlayer.Character
+    if not character then return nil end
+
+    local root = character:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+
+    local nearest = nil
+    local nearestDistance = math.huge
+
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("Model") and obj ~= character then
+            local humanoid = obj:FindFirstChildOfClass("Humanoid")
+            local npcRoot = obj:FindFirstChild("HumanoidRootPart")
+
+            if humanoid and npcRoot and humanoid.Health > 0 then
+                local distance = (root.Position - npcRoot.Position).Magnitude
+                if distance < nearestDistance then
+                    nearestDistance = distance
+                    nearest = obj
+                end
+            end
+        end
+    end
+
+    return nearest
+end
+
+NPCCombatTab:CreateSection("NPC Farming")
+
+NPCCombatTab:CreateToggle({
+    Name = "Float Above NPC",
+    CurrentValue = false,
+    Flag = "NPCFloat",
+    Callback = function(Value)
+        NPCFloatEnabled = Value
+    end,
+})
+
+NPCCombatTab:CreateToggle({
+    Name = "Attack NPC",
+    CurrentValue = false,
+    Flag = "NPCAttack",
+    Callback = function(Value)
+        NPCAttackEnabled = Value
+    end,
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Float Height",
+    Range = {3, 20},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = 8,
+    Flag = "NPCFloatHeight",
+    Callback = function(Value)
+        FloatHeight = Value
+    end,
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Attack Cooldown",
+    Range = {0.1, 2},
+    Increment = 0.05,
+    Suffix = " sec",
+    CurrentValue = 0.5,
+    Flag = "NPCAttackCooldown",
+    Callback = function(Value)
+        AttackCooldown = Value
+    end,
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Damage",
+    Range = {1, 100},
+    Increment = 1,
+    Suffix = " damage",
+    CurrentValue = 10,
+    Flag = "NPCDamage",
+    Callback = function(Value)
+        Damage = Value
+    end,
+})
+
+task.spawn(function()
+    while task.wait(0.05) do
+        if NPCFloatEnabled then
+            local character = LocalPlayer.Character
+            local root = character and character:FindFirstChild("HumanoidRootPart")
+            local npc = GetNearestNPC()
+            local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
+
+            if root and npcRoot then
+                root.CFrame = npcRoot.CFrame * CFrame.new(0, FloatHeight, 0)
+            end
+        end
+    end
+end)
+
+task.spawn(function()
+    while task.wait(0.05) do
+        if NPCAttackEnabled then
+            local npc = GetNearestNPC()
+            local humanoid = npc and npc:FindFirstChildOfClass("Humanoid")
+
+            if humanoid and humanoid.Health > 0 then
+                humanoid:TakeDamage(Damage)
+            end
+
+            task.wait(AttackCooldown)
+        end
+    end
+end)
+
+--// Credits
+local CreditsTab = Window:CreateTab("Credits", 6031075931)
+
+CreditsTab:CreateSection("Developer Panel")
+CreditsTab:CreateLabel("Developer: LEGENDSNEVERDIE625")
+CreditsTab:CreateLabel("UI: Rayfield")
+CreditsTab:CreateLabel("Purpose: Roblox Exploiting")
+CreditsTab:CreateLabel("Version: 1.1")
+
+Rayfield:LoadConfiguration()
