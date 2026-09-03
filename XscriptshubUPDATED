@@ -53,6 +53,36 @@ local LastAttack = 0
 
 -- Farming item is selected by inventory hotbar slot (1-9).
 local SelectedInventorySlot = 1
+local HitboxSize = 4
+local OriginalHitboxSizes = {}
+
+local function ApplySelectedToolHitbox()
+    local tool = GetToolFromSlot and GetToolFromSlot(SelectedInventorySlot)
+    if not tool then return end
+
+    for _, object in ipairs(tool:GetDescendants()) do
+        if object:IsA("BasePart") then
+            if not OriginalHitboxSizes[object] then
+                OriginalHitboxSizes[object] = object.Size
+            end
+
+            -- Client-side visual/physical enlargement of the selected Tool.
+            object.Size = OriginalHitboxSizes[object] * (HitboxSize / 4)
+        end
+    end
+end
+
+local function RestoreToolHitbox(tool)
+    if not tool then return end
+
+    for _, object in ipairs(tool:GetDescendants()) do
+        local original = OriginalHitboxSizes[object]
+        if object:IsA("BasePart") and original then
+            object.Size = original
+            OriginalHitboxSizes[object] = nil
+        end
+    end
+end
 
 local NPCCombatTab = Window:CreateTab("NPC Combat", 124871982298256)
 
@@ -106,8 +136,20 @@ local function EquipSelectedFarmingItem()
         humanoid:EquipTool(tool)
     end
 
+    task.defer(function()
+        ApplySelectedToolHitbox()
+    end)
+
     return tool
 end
+
+task.spawn(function()
+    while task.wait(0.25) do
+        if NPCAttackEnabled or NPCFloatEnabled then
+            ApplySelectedToolHitbox()
+        end
+    end
+end)
 
 local function GetNearestNPC()
     local character = Player.Character
@@ -168,6 +210,19 @@ NPCCombatTab:CreateDropdown({
         if number then
             SelectedInventorySlot = math.clamp(number, 1, 9)
         end
+    end
+})
+
+NPCCombatTab:CreateSlider({
+    Name = "Selected Slot Hitbox Size",
+    Range = {1, 20},
+    Increment = 1,
+    Suffix = " studs",
+    CurrentValue = 4,
+    Flag = "SelectedSlotHitbox",
+    Callback = function(value)
+        HitboxSize = value
+        ApplySelectedToolHitbox()
     end
 })
 
@@ -235,7 +290,7 @@ NPCCombatTab:CreateSlider({
 
 NPCCombatTab:CreateSlider({
     Name = "Damage",
-    Range = {500, 5000},
+    Range = {500, 100000},
     Increment = 100,
     Suffix = " damage",
     CurrentValue = 10,
