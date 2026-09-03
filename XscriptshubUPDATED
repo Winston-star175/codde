@@ -32,7 +32,7 @@ local Window = Rayfield:CreateWindow({
         FileName = "XScriptkeyf!le",
         SaveKey = true,
         GrabKeyFromSite = false,
-        Key = {"Hello"}
+        Key = {"Legend"}
     }
 })
 
