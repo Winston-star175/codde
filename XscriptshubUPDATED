@@ -43,17 +43,28 @@ local UserInputService = game:GetService("UserInputService")
 
 local Player = Players.LocalPlayer
 
---// NPC Combat
+--// NPC Combat - Integrated Auto Farm
 local NPCFloatEnabled = false
 local NPCAttackEnabled = false
+local AutoFarmEnabled = false
 local FloatHeight = 8
 local AttackCooldown = 0.5
 local Damage = 10
+local CurrentNPC = nil
 local LastAttack = 0
 
 local NPCCombatTab = Window:CreateTab("NPC Combat", 124871982298256)
+NPCCombatTab:CreateSection("Auto Farming")
 
-NPCCombatTab:CreateSection("NPC Farming")
+local function IsNPC(model)
+    if not model or not model:IsA("Model") then return false end
+    if Players:GetPlayerFromCharacter(model) then return false end
+
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local root = model:FindFirstChild("HumanoidRootPart")
+
+    return humanoid ~= nil and humanoid.Health > 0 and root ~= nil
+end
 
 local function GetNearestNPC()
     local character = Player.Character
@@ -62,33 +73,16 @@ local function GetNearestNPC()
     local root = character:FindFirstChild("HumanoidRootPart")
     if not root then return nil end
 
-    local nearest = nil
-    local nearestDistance = math.huge
+    local nearest, nearestDistance = nil, math.huge
 
     for _, obj in ipairs(workspace:GetDescendants()) do
-        if obj:IsA("Model") and obj ~= character then
+        if IsNPC(obj) then
+            local npcRoot = obj:FindFirstChild("HumanoidRootPart")
+            local distance = (root.Position - npcRoot.Position).Magnitude
 
-            -- Never target a player character.
-            local player = Players:GetPlayerFromCharacter(obj)
-            if player then
-                continue
-            end
-
-            -- Only target living NPC models.
-            local humanoid = obj:FindFirstChildOfClass("Humanoid")
-
-            if humanoid and humanoid.Health > 0 then
-                local npcRoot = obj:FindFirstChild("HumanoidRootPart")
-
-                if npcRoot then
-                    local distance =
-                        (root.Position - npcRoot.Position).Magnitude
-
-                    if distance < nearestDistance then
-                        nearestDistance = distance
-                        nearest = obj
-                    end
-                end
+            if distance < nearestDistance then
+                nearestDistance = distance
+                nearest = obj
             end
         end
     end
@@ -96,12 +90,41 @@ local function GetNearestNPC()
     return nearest
 end
 
+local function GetTarget()
+    if IsNPC(CurrentNPC) then return CurrentNPC end
+    CurrentNPC = GetNearestNPC()
+    return CurrentNPC
+end
+
+local function ClearTarget()
+    CurrentNPC = nil
+end
+
+NPCCombatTab:CreateToggle({
+    Name = "Auto Farm NPCs",
+    CurrentValue = false,
+    Flag = "NPCAutoFarm",
+    Callback = function(value)
+        AutoFarmEnabled = value
+        if not value then ClearTarget() end
+    end
+})
+
 NPCCombatTab:CreateToggle({
     Name = "Float Above NPC",
     CurrentValue = false,
     Flag = "NPCFloat",
     Callback = function(value)
         NPCFloatEnabled = value
+    end
+})
+
+NPCCombatTab:CreateToggle({
+    Name = "Attack NPC",
+    CurrentValue = false,
+    Flag = "NPCAttack",
+    Callback = function(value)
+        NPCAttackEnabled = value
     end
 })
 
@@ -114,15 +137,6 @@ NPCCombatTab:CreateSlider({
     Flag = "NPCFloatHeight",
     Callback = function(value)
         FloatHeight = value
-    end
-})
-
-NPCCombatTab:CreateToggle({
-    Name = "Attack NPC",
-    CurrentValue = false,
-    Flag = "NPCAttack",
-    Callback = function(value)
-        NPCAttackEnabled = value
     end
 })
 
@@ -140,8 +154,8 @@ NPCCombatTab:CreateSlider({
 
 NPCCombatTab:CreateSlider({
     Name = "Damage",
-    Range = {500, 100000},
-    Increment = 100,
+    Range = {1, 100},
+    Increment = 1,
     Suffix = " damage",
     CurrentValue = 10,
     Flag = "NPCDamage",
@@ -152,157 +166,31 @@ NPCCombatTab:CreateSlider({
 
 task.spawn(function()
     while task.wait(0.05) do
-        if NPCFloatEnabled then
+        if AutoFarmEnabled then
             local character = Player.Character
             local root = character and character:FindFirstChild("HumanoidRootPart")
-            local npc = GetNearestNPC()
-            local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
+            local npc = GetTarget()
 
-            if root and npcRoot then
-                root.CFrame = npcRoot.CFrame * CFrame.new(0, FloatHeight, 0)
-            end
-        end
-    end
-end)
+            if npc then
+                local npcRoot = npc:FindFirstChild("HumanoidRootPart")
+                local humanoid = npc:FindFirstChildOfClass("Humanoid")
 
-task.spawn(function()
-    while task.wait(0.05) do
-        if NPCAttackEnabled and os.clock() - LastAttack >= AttackCooldown then
-            local npc = GetNearestNPC()
-            local humanoid = npc and npc:FindFirstChildOfClass("Humanoid")
+                if not npcRoot or not humanoid or humanoid.Health <= 0 then
+                    ClearTarget()
+                    continue
+                end
 
-            if humanoid and humanoid.Health > 0 then
-                LastAttack = os.clock()
-                humanoid:TakeDamage(Damage)
-            end
-        end
-    end
-end)
+                if NPCFloatEnabled and root then
+                    root.CFrame = npcRoot.CFrame * CFrame.new(0, FloatHeight, 0)
+                end
 
---// Auto Skill Keys
-local AutoKeyZ = false
-local AutoKeyX = false
-local AutoKeyC = false
-local AutoKeyV = false
-local AutoKeyDelay = 1
+                if NPCAttackEnabled and os.clock() - LastAttack >= AttackCooldown then
+                    LastAttack = os.clock()
+                    humanoid:TakeDamage(Damage)
+                end
 
-local function PressKey(key)
-    -- Executor/client environments that expose keypress/keyrelease.
-    if typeof(keypress) == "function" and typeof(keyrelease) == "function" then
-        pcall(function()
-            keypress(key)
-            task.wait(0.05)
-            keyrelease(key)
-        end)
-        return true
-    end
-
-    return false
-end
-
-local function GetEnabledAutoKeys()
-    local keys = {}
-
-    if AutoKeyZ then table.insert(keys, "z") end
-    if AutoKeyX then table.insert(keys, "x") end
-    if AutoKeyC then table.insert(keys, "c") end
-    if AutoKeyV then table.insert(keys, "v") end
-
-    return keys
-end
-
-local AutoKeyTab = Window:CreateTab("Auto Keys", 6031075931)
-
-AutoKeyTab:CreateSection("Automatic Key Presses")
-
-AutoKeyTab:CreateToggle({
-    Name = "Auto Z",
-    CurrentValue = false,
-    Flag = "AutoKeyZ",
-    Callback = function(value)
-        AutoKeyZ = value
-    end
-})
-
-AutoKeyTab:CreateToggle({
-    Name = "Auto X",
-    CurrentValue = false,
-    Flag = "AutoKeyX",
-    Callback = function(value)
-        AutoKeyX = value
-    end
-})
-
-AutoKeyTab:CreateToggle({
-    Name = "Auto C",
-    CurrentValue = false,
-    Flag = "AutoKeyC",
-    Callback = function(value)
-        AutoKeyC = value
-    end
-})
-
-AutoKeyTab:CreateToggle({
-    Name = "Auto V",
-    CurrentValue = false,
-    Flag = "AutoKeyV",
-    Callback = function(value)
-        AutoKeyV = value
-    end
-})
-
-AutoKeyTab:CreateSlider({
-    Name = "Key Delay",
-    Range = {0.1, 5},
-    Increment = 0.1,
-    Suffix = " sec",
-    CurrentValue = 1,
-    Flag = "AutoKeyDelay",
-    Callback = function(value)
-        AutoKeyDelay = value
-    end
-})
-
-AutoKeyTab:CreateButton({
-    Name = "Test Selected Keys",
-    Callback = function()
-        local keys = GetEnabledAutoKeys()
-
-        for _, key in ipairs(keys) do
-            PressKey(key)
-            task.wait(0.1)
-        end
-    end
-})
-
-task.spawn(function()
-    while task.wait(0.05) do
-        local keys = GetEnabledAutoKeys()
-
-        -- Only press the selected keys while a living NPC is the current target.
-        local npc = GetNearestNPC()
-        local character = Player.Character
-        local root = character and character:FindFirstChild("HumanoidRootPart")
-        local npcRoot = npc and npc:FindFirstChild("HumanoidRootPart")
-
-        if #keys > 0 and root and npcRoot then
-            -- Face the character toward the NPC before using the abilities.
-            root.CFrame = CFrame.lookAt(
-                root.Position,
-                Vector3.new(npcRoot.Position.X, root.Position.Y, npcRoot.Position.Z)
-            )
-
-            for _, key in ipairs(keys) do
-                -- Re-check that the NPC is still valid before each key.
-                local currentNPC = GetNearestNPC()
-                local currentRoot = currentNPC and currentNPC:FindFirstChild("HumanoidRootPart")
-                local currentHumanoid = currentNPC and currentNPC:FindFirstChildOfClass("Humanoid")
-
-                if currentRoot and currentHumanoid and currentHumanoid.Health > 0 then
-                    PressKey(key)
-                    task.wait(AutoKeyDelay)
-                else
-                    break
+                if humanoid.Health <= 0 then
+                    ClearTarget()
                 end
             end
         end
@@ -546,19 +434,6 @@ Player.CharacterAdded:Connect(function(character)
     if Invisible then
         task.wait(0.25)
         SetInvisibility(true)
-    end
-end)
-
-local backpack = Player:WaitForChild("Backpack")
-backpack.ChildAdded:Connect(function(child)
-    if child:IsA("Tool") then
-        task.defer(RefreshToolList)
-    end
-end)
-
-backpack.ChildRemoved:Connect(function(child)
-    if child:IsA("Tool") then
-        task.defer(RefreshToolList)
     end
 end)
 
@@ -809,3 +684,4 @@ CreditsTab:CreateLabel("Purpose: Roblox Scripting")
 CreditsTab:CreateLabel("Version: 1.1")
 
 Rayfield:LoadConfiguration()
+
